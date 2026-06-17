@@ -313,6 +313,51 @@ def extract_brave_cookies(
         return None
 
 
+def _extract_chromium_family_cookies(
+    browser: str, domain: str, cookie_names: List[str]
+) -> Optional[Dict[str, str]]:
+    """Extract cookies from a non-Chrome/Brave Chromium browser on macOS.
+
+    macOS only — Edge, Vivaldi, Opera, Arc, and Chromium all reuse Chrome's
+    v10 AES-128-CBC encryption, with their own profile path and Keychain
+    service name (see chrome_cookies.CHROMIUM_BROWSER_PROFILES).
+    """
+    if platform.system() != "Darwin":
+        logger.debug("%s cookie extraction only supported on macOS", browser)
+        return None
+    try:
+        from .chrome_cookies import extract_chromium_browser_cookies_macos
+        return extract_chromium_browser_cookies_macos(browser, domain, cookie_names)
+    except Exception as exc:
+        logger.debug("%s cookie extraction failed: %s", browser, exc)
+        return None
+
+
+def extract_edge_cookies(domain: str, cookie_names: List[str]) -> Optional[Dict[str, str]]:
+    """Extract cookies from Microsoft Edge for the given domain (macOS only)."""
+    return _extract_chromium_family_cookies("edge", domain, cookie_names)
+
+
+def extract_vivaldi_cookies(domain: str, cookie_names: List[str]) -> Optional[Dict[str, str]]:
+    """Extract cookies from Vivaldi for the given domain (macOS only)."""
+    return _extract_chromium_family_cookies("vivaldi", domain, cookie_names)
+
+
+def extract_opera_cookies(domain: str, cookie_names: List[str]) -> Optional[Dict[str, str]]:
+    """Extract cookies from Opera for the given domain (macOS only)."""
+    return _extract_chromium_family_cookies("opera", domain, cookie_names)
+
+
+def extract_arc_cookies(domain: str, cookie_names: List[str]) -> Optional[Dict[str, str]]:
+    """Extract cookies from Arc for the given domain (macOS only)."""
+    return _extract_chromium_family_cookies("arc", domain, cookie_names)
+
+
+def extract_chromium_cookies(domain: str, cookie_names: List[str]) -> Optional[Dict[str, str]]:
+    """Extract cookies from open-source Chromium for the given domain (macOS only)."""
+    return _extract_chromium_family_cookies("chromium", domain, cookie_names)
+
+
 def extract_safari_cookies(
     domain: str, cookie_names: List[str]
 ) -> Optional[Dict[str, str]]:
@@ -340,9 +385,10 @@ def extract_cookies(
     """Extract cookies from the specified browser.
 
     Args:
-        browser: One of 'firefox', 'chrome', 'brave', 'safari', or 'auto'.
+        browser: One of 'firefox', 'chrome', 'brave', 'edge', 'vivaldi',
+            'opera', 'arc', 'chromium', 'safari', or 'auto'.
             'auto' tries browsers in platform-appropriate order:
-            - macOS: Chrome -> Brave -> Firefox -> Safari
+            - macOS: Chrome -> Brave -> Edge -> Vivaldi -> Opera -> Arc -> Chromium -> Firefox -> Safari
             - Linux: Firefox only
         domain: The cookie domain to match (e.g. ".x.com").
         cookie_names: List of cookie names to extract.
@@ -391,7 +437,8 @@ def extract_cookies_with_source(
     so callers can track the source.
 
     Args:
-        browser: One of 'firefox', 'chrome', 'brave', 'safari', or 'auto'.
+        browser: One of 'firefox', 'chrome', 'brave', 'edge', 'vivaldi',
+            'opera', 'arc', 'chromium', 'safari', or 'auto'.
         domain: The cookie domain to match (e.g. ".x.com").
         cookie_names: List of cookie names to extract.
 
@@ -403,6 +450,11 @@ def extract_cookies_with_source(
         "firefox": extract_firefox_cookies,
         "chrome": extract_chrome_cookies,
         "brave": extract_brave_cookies,
+        "edge": extract_edge_cookies,
+        "vivaldi": extract_vivaldi_cookies,
+        "opera": extract_opera_cookies,
+        "arc": extract_arc_cookies,
+        "chromium": extract_chromium_cookies,
         "safari": extract_safari_cookies,
     }
 
@@ -416,10 +468,14 @@ def extract_cookies_with_source(
         result = extractor(domain, cookie_names)
         return (result, browser) if result is not None else None
 
-    # Auto mode: try browsers in platform-appropriate order
+    # Auto mode: try browsers in platform-appropriate order.
+    # Note: the skill's own entry point (env.extract_browser_credentials) builds
+    # its own list that tries the SILENT browsers (Firefox, Safari) first to
+    # avoid macOS Keychain prompts. This standalone "auto" is Chromium-first; the
+    # two orderings are intentional for their respective callers.
     system = platform.system()
     if system == "Darwin":
-        order = ["chrome", "brave", "firefox", "safari"]
+        order = ["chrome", "brave", "edge", "vivaldi", "opera", "arc", "chromium", "firefox", "safari"]
     elif system == "Linux":
         order = ["firefox"]
     else:

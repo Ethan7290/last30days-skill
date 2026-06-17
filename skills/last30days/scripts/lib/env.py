@@ -482,28 +482,34 @@ def cookie_extraction_browsers(config: dict[str, Any]) -> list[str]:
     """Browsers to try for cookie extraction, honoring FROM_BROWSER.
 
     Default (FROM_BROWSER unset): Firefox and Safari only. These read local
-    files silently with no system dialogs. Chrome/Brave are skipped because
-    reading their cookies on macOS requires the "Chrome Safe Storage" Keychain
-    key, which triggers a system password prompt that cannot be reliably
-    suppressed. On Windows only Firefox cookie extraction is supported; Chrome
-    and Edge use DPAPI-encrypted cookie stores that are not yet supported.
+    files silently with no system dialogs. The Chromium family (Chrome, Brave,
+    Edge, Vivaldi, Opera, Arc, Chromium) is skipped because reading their
+    cookies on macOS requires the browser's Safe Storage Keychain key, which
+    triggers a system password prompt that cannot be reliably suppressed. On
+    Windows only Firefox cookie extraction is supported; Chrome and Edge use
+    DPAPI-encrypted cookie stores that are not yet supported.
 
-    - ``FROM_BROWSER=firefox|chrome|safari`` - that single browser.
-    - ``FROM_BROWSER=auto`` - also try Chrome (the user has accepted the dialog).
+    - ``FROM_BROWSER=<name>`` - a single browser (e.g. ``firefox``, ``brave``,
+      ``edge``, ``arc``).
+    - ``FROM_BROWSER=auto`` - also try every Chromium browser (user accepts the
+      Keychain dialog when needed).
     - ``FROM_BROWSER=off`` - returns [] (extraction disabled).
 
     Returning the browser list from one place keeps the setup wizard and the
     steady-state path on the same policy, so neither surprises the user with an
     unrequested Keychain prompt.
     """
+    silent_browsers = ["firefox", "safari"]
+    chromium_browsers = ["chrome", "brave", "edge", "vivaldi", "opera", "arc", "chromium"]
     from_browser = (config.get("FROM_BROWSER") or "").strip().lower()
     if from_browser == "off":
         return []
-    if from_browser in ("firefox", "chrome", "safari"):
+    if from_browser in silent_browsers or from_browser in chromium_browsers:
         return [from_browser]
     if from_browser == "auto":
-        return ["firefox", "safari", "chrome"]
-    return ["firefox", "safari"]
+        return silent_browsers + chromium_browsers
+    return list(silent_browsers)
+
 
 
 def extract_browser_credentials(config: dict[str, Any]) -> dict[str, str]:

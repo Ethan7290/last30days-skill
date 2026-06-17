@@ -86,7 +86,11 @@ AUTH_TOKEN=<your-auth-token>
 CT0=<your-ct0-token>
 # OR xAI API key (paid)
 # XAI_API_KEY=<your-xai-key>
-# OR cookie-jar (free; logs in via your browser session)
+# OR cookie-jar (free; logs in via your browser session).
+# Unset = Firefox + Safari (silent). FROM_BROWSER=auto also tries the Chromium
+# family (Chrome, Brave, Edge, Vivaldi, Opera, Arc, Chromium); it only prompts
+# for macOS Keychain access on the browser that actually holds your X cookies.
+# Or name a single browser, e.g. brave/edge. On Windows only Firefox is supported.
 # FROM_BROWSER=firefox
 
 # Bluesky
