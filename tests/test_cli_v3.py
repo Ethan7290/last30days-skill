@@ -167,6 +167,18 @@ class CliV3Tests(unittest.TestCase):
         self.assertEqual(2, exc.exception.code)
         self.assertIn("skill arguments", stderr.getvalue())
 
+    def test_agent_error_includes_other_unknown_flags(self):
+        with mock.patch.object(
+            cli.env, "get_config", side_effect=AssertionError("config should not load")
+        ), mock.patch.object(sys, "argv", ["last30days.py", "topic", "--agent", "--save"]):
+            stderr = io.StringIO()
+            with redirect_stderr(stderr), self.assertRaises(SystemExit) as exc:
+                cli.main()
+        self.assertEqual(2, exc.exception.code)
+        message = stderr.getvalue()
+        self.assertIn("--agent", message)
+        self.assertIn("--save", message)
+
     def test_setup_passthrough_flags_remain_scoped_to_setup(self):
         with mock.patch.object(cli.env, "get_config", return_value={}), \
              mock.patch("lib.setup_wizard.run_github_auth", return_value={"status": "cancelled"}), \

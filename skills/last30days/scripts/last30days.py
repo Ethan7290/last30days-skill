@@ -667,12 +667,16 @@ def _validate_extra_argv(parser: argparse.ArgumentParser, topic: str, extra_argv
             )
         return
     skill_only = [arg for arg in extra_argv if arg in SKILL_ONLY_FLAGS]
+    other_unknown = [arg for arg in extra_argv if arg not in SKILL_ONLY_FLAGS]
     if skill_only:
-        parser.error(
+        message = (
             "unsupported Python CLI argument(s): "
             + ", ".join(skill_only)
             + "; these are skill arguments and must not be forwarded to scripts/last30days.py"
         )
+        if other_unknown:
+            message += "; also unsupported: " + ", ".join(other_unknown)
+        parser.error(message)
     parser.error("unsupported Python CLI argument(s): " + ", ".join(extra_argv))
 
 

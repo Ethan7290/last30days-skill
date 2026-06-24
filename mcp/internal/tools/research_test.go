@@ -106,6 +106,7 @@ func TestResearchRunArgsIncludesNoBrowserCookies(t *testing.T) {
 }
 
 func TestResearchRunArgsSaveUsesSupportedSaveDir(t *testing.T) {
+	t.Setenv("LAST30DAYS_MEMORY_DIR", "")
 	args := researchRunArgs("OpenAI", "html", true)
 	got := strings.Join(args, "\x00")
 	if strings.Contains(got, "--save\x00") || strings.HasSuffix(got, "--save") {
@@ -113,6 +114,15 @@ func TestResearchRunArgsSaveUsesSupportedSaveDir(t *testing.T) {
 	}
 	want := []string{"OpenAI", "--emit=html", "--no-browser-cookies", "--save-dir", "~/Documents/Last30Days"}
 	if got != strings.Join(want, "\x00") {
+		t.Fatalf("args = %#v, want %#v", args, want)
+	}
+}
+
+func TestResearchRunArgsSaveUsesMemoryDirEnvOverride(t *testing.T) {
+	t.Setenv("LAST30DAYS_MEMORY_DIR", "/tmp/last30days-reports")
+	args := researchRunArgs("OpenAI", "html", true)
+	want := []string{"OpenAI", "--emit=html", "--no-browser-cookies", "--save-dir", "/tmp/last30days-reports"}
+	if strings.Join(args, "\x00") != strings.Join(want, "\x00") {
 		t.Fatalf("args = %#v, want %#v", args, want)
 	}
 }

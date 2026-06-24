@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	mcplib "github.com/mark3labs/mcp-go/mcp"
@@ -90,7 +91,11 @@ func makeResearchHandler(cfg Config) server.ToolHandlerFunc {
 func researchRunArgs(topic, emit string, save bool) []string {
 	runArgs := []string{topic, "--emit=" + emit, "--no-browser-cookies"}
 	if save {
-		runArgs = append(runArgs, "--save-dir", "~/Documents/Last30Days")
+		saveDir := os.Getenv("LAST30DAYS_MEMORY_DIR")
+		if saveDir == "" {
+			saveDir = "~/Documents/Last30Days"
+		}
+		runArgs = append(runArgs, "--save-dir", saveDir)
 	}
 	return runArgs
 }
