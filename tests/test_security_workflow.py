@@ -27,7 +27,7 @@ def test_security_workflow_runs_dependency_audit_as_blocking_check() -> None:
 
 def test_security_workflow_runs_secret_scan_for_pull_requests_and_main_pushes() -> None:
     text = _workflow_text()
-    secret_scan_job = text.split("secret-scan:", 1)[1]
+    secret_scan_job = text.split("secret-scan:", 1)[1].split("sast-scan:", 1)[0]
 
     assert "secret-scan:" in text
     assert "pull_request:" in text
@@ -40,6 +40,20 @@ def test_security_workflow_runs_secret_scan_for_pull_requests_and_main_pushes() 
     assert "continue-on-error: true" not in secret_scan_job
     assert "if: github.event_name" not in secret_scan_job
     assert "path: ./" not in secret_scan_job
+
+
+def test_security_workflow_runs_sast_without_unused_code_scanning_permission() -> None:
+    text = _workflow_text()
+    sast_job = text.split("sast-scan:", 1)[1]
+
+    assert "semgrep/semgrep@sha256:" in sast_job
+    assert "semgrep scan --config=auto" in sast_job
+    assert "SEMGREP_SEND_METRICS: off" in sast_job
+    assert "continue-on-error: true" in sast_job
+    assert "contents: read" in sast_job
+    assert "security-events: write" not in sast_job
+    assert "--sarif" not in sast_job
+    assert "upload-sarif" not in sast_job
 
 
 def test_agent_guidance_mentions_secret_hygiene() -> None:
