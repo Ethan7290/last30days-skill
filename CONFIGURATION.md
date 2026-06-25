@@ -372,10 +372,9 @@ The skill is built to flex around different client environments. Four patterns t
 
 **Codex note:** the repository includes `.codex-plugin/plugin.json` so Codex can treat the existing
 `skills/last30days/SKILL.md` tree as plugin metadata without maintaining a separate Codex copy.
-The Codex marketplace catalog points at the repository root URL, matching the root-native plugin
-layout used by Compound Engineering: Codex clones the repo, reads the root `.codex-plugin/plugin.json`,
-and loads skills from `./skills/`. The Agent Skills install command documented in the README remains
-the broadest cross-host path.
+The Codex marketplace catalog points at the repository root URL: Codex clones the repo, reads the
+root `.codex-plugin/plugin.json`, and loads skills from `./skills/`. The Agent Skills install
+command documented in the README remains the broadest cross-host path.
 
 ### 1. Trusted per-client `.claude/last30days.env`
 
