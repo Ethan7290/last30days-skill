@@ -58,7 +58,7 @@ func makePreflightHandler(cfg Config) server.ToolHandlerFunc {
 }
 
 func preflightRunArgs(format string) []string {
-	runArgs := []string{"--preflight", "--no-browser-cookies", "--preflight-report-on-save-dir", mcpSaveDir()}
+	runArgs := []string{"--preflight", "--preflight-report-on-save-dir", mcpSaveDir()}
 	if format == "json" {
 		runArgs = append(runArgs, "--emit=json")
 	}

@@ -731,12 +731,15 @@ def main() -> int:
     if args.preflight:
         requested_sources = resolve_requested_sources(args.search, config)
         diag = pipeline.diagnose(config, requested_sources, safe=True)
-        preflight = permission_preflight.build(
-            config,
-            diag,
-            planned_save_dir=args.save_dir,
-            report_on_save_dir=args.preflight_report_on_save_dir,
-        )
+        if args.save_dir or args.preflight_report_on_save_dir:
+            preflight = permission_preflight.build(
+                config,
+                diag,
+                planned_save_dir=args.save_dir,
+                report_on_save_dir=args.preflight_report_on_save_dir,
+            )
+        else:
+            preflight = diag["permission_preflight"]
         if args.emit == "json":
             print(json.dumps(preflight, indent=2, sort_keys=True))
         else:

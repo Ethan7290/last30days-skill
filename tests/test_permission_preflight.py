@@ -41,6 +41,13 @@ def _diag(**overrides):
     return base
 
 
+def _diag_with_preflight(config=None, **overrides):
+    config = config or {}
+    diag = _diag(**overrides)
+    diag["permission_preflight"] = permission_preflight.build(config, diag)
+    return diag
+
+
 def test_preflight_reports_safe_browser_default_without_cookie_values():
     diag = _diag()
     preflight = permission_preflight.build({}, diag)
@@ -101,6 +108,28 @@ def test_preflight_prefers_definite_save_dir_over_conditional_report_on_save(tmp
     assert preflight["conditional_writes"] == []
 
 
+def test_preflight_dedupes_env_save_dir_against_conditional_report_on_save():
+    preflight = permission_preflight.build(
+        {"LAST30DAYS_MEMORY_DIR": DEFAULT_SAVE_DIR},
+        _diag(local_writes=[{"kind": "report", "path": DEFAULT_SAVE_DIR}]),
+        report_on_save_dir=DEFAULT_SAVE_DIR,
+    )
+
+    assert preflight["local_writes"] == [{"kind": "report", "path": DEFAULT_SAVE_DIR}]
+    assert preflight["conditional_writes"] == []
+
+
+def test_preflight_project_config_not_active_is_not_trusted_with_trust_env():
+    preflight = permission_preflight.build(
+        {"LAST30DAYS_TRUST_PROJECT_CONFIG": "1"},
+        _diag(config_source="env_only", ignored_project_config=None),
+    )
+
+    project = preflight["local_reads"]["project_config"]
+    assert project["status"] == "not_active"
+    assert project["trusted"] is False
+
+
 def test_preflight_reports_ignored_project_config_without_secret_values(tmp_path, monkeypatch):
     project_env = tmp_path / ".claude" / "last30days.env"
     project_env.parent.mkdir()
@@ -159,7 +188,7 @@ def test_cli_preflight_uses_plan_only_policy_and_does_not_run_research(monkeypat
         return {"_BROWSER_COOKIE_MODE": policy.browser_cookies, "_BROWSER_COOKIE_BROWSERS": []}
 
     with mock.patch.object(cli.env, "get_config", side_effect=fake_get_config), \
-         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag()) as diagnose, \
+         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag_with_preflight()) as diagnose, \
          mock.patch.object(cli.pipeline, "run", side_effect=AssertionError("research should not run")), \
          mock.patch.object(sys, "argv", ["last30days.py", "--preflight"]):
         stdout = io.StringIO()
@@ -174,10 +203,26 @@ def test_cli_preflight_uses_plan_only_policy_and_does_not_run_research(monkeypat
     assert "Local writes:" in stdout.getvalue()
 
 
+def test_cli_preflight_reuses_embedded_preflight_without_save_overrides(monkeypatch):
+    embedded = permission_preflight.build({}, _diag())
+    diag = _diag(permission_preflight=embedded)
+    with mock.patch.object(cli.env, "get_config", return_value={}), \
+         mock.patch.object(cli.pipeline, "diagnose", return_value=diag), \
+         mock.patch.object(cli.permission_preflight, "build", side_effect=AssertionError("should reuse embedded preflight")), \
+         mock.patch.object(sys, "argv", ["last30days.py", "--preflight", "--emit=json"]):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            assert cli.main() == 0
+
+    payload = json.loads(stdout.getvalue())
+    assert payload == embedded
+
+
 def test_cli_preflight_reports_explicit_save_dir(monkeypatch, tmp_path):
     save_dir = tmp_path / "reports"
     with mock.patch.object(cli.env, "get_config", return_value={}), \
-         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag()), \
+         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag_with_preflight()), \
          mock.patch.object(sys, "argv", ["last30days.py", "--preflight", "--save-dir", str(save_dir)]):
         stdout = io.StringIO()
         stderr = io.StringIO()
@@ -190,7 +235,7 @@ def test_cli_preflight_reports_explicit_save_dir(monkeypatch, tmp_path):
 
 def test_cli_preflight_reports_conditional_save_dir(monkeypatch):
     with mock.patch.object(cli.env, "get_config", return_value={}), \
-         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag()), \
+         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag_with_preflight()), \
          mock.patch.object(
              sys,
              "argv",
@@ -211,7 +256,7 @@ def test_cli_preflight_reports_conditional_save_dir(monkeypatch):
 
 def test_cli_preflight_json_returns_structured_contract(monkeypatch):
     with mock.patch.object(cli.env, "get_config", return_value={}), \
-         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag()), \
+         mock.patch.object(cli.pipeline, "diagnose", return_value=_diag_with_preflight()), \
          mock.patch.object(sys, "argv", ["last30days.py", "--preflight", "--emit=json"]):
         stdout = io.StringIO()
         stderr = io.StringIO()

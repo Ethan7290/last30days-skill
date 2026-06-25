@@ -10,7 +10,6 @@ func TestPreflightRunArgsDefaultTextIsSafe(t *testing.T) {
 	args := preflightRunArgs("text")
 	want := []string{
 		"--preflight",
-		"--no-browser-cookies",
 		"--preflight-report-on-save-dir",
 		"~/Documents/Last30Days",
 	}
@@ -24,7 +23,6 @@ func TestPreflightRunArgsJSONIsSafeAndStructured(t *testing.T) {
 	args := preflightRunArgs("json")
 	want := []string{
 		"--preflight",
-		"--no-browser-cookies",
 		"--preflight-report-on-save-dir",
 		"/tmp/last30days-reports",
 		"--emit=json",

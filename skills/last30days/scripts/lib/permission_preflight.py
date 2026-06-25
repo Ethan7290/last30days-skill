@@ -35,6 +35,22 @@ def _status(value: bool) -> str:
     return "available" if value else "unavailable"
 
 
+def _write_key(write: dict[str, str]) -> tuple[str, str]:
+    return str(write.get("kind") or ""), str(write.get("path") or "")
+
+
+def _dedupe_writes(writes: list[dict[str, str]]) -> list[dict[str, str]]:
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for write in writes:
+        key = _write_key(write)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(write)
+    return deduped
+
+
 def build(
     config: dict[str, Any],
     diagnose: dict[str, Any],
@@ -55,7 +71,6 @@ def build(
     ignored_project_config = diagnose.get("ignored_project_config")
     config_source = str(diagnose.get("config_source") or "env_only")
     project_config_active = config_source.startswith("project:")
-    trust_signal = _truthy(config.get("LAST30DAYS_TRUST_PROJECT_CONFIG"))
     if project_config_active:
         project_status = "trusted_active"
     elif ignored_project_config:
@@ -66,9 +81,12 @@ def build(
     local_writes = list(diagnose.get("local_writes") or [])
     if planned_save_dir:
         local_writes = [{"kind": "report", "path": str(planned_save_dir)}]
+    local_writes = _dedupe_writes([dict(write) for write in local_writes])
+    local_write_paths = {str(write.get("path") or "") for write in local_writes}
     conditional_writes: list[dict[str, str]] = []
-    if report_on_save_dir and not planned_save_dir:
+    if report_on_save_dir and not planned_save_dir and str(report_on_save_dir) not in local_write_paths:
         conditional_writes.append({"kind": "report_on_save", "path": str(report_on_save_dir)})
+    conditional_writes = _dedupe_writes(conditional_writes)
 
     providers = dict(diagnose.get("providers") or {})
     credentials = {
@@ -104,7 +122,7 @@ def build(
             "config_source": config_source,
             "project_config": {
                 "status": project_status,
-                "trusted": bool(project_config_active or trust_signal),
+                "trusted": bool(project_config_active),
                 "ignored_path": ignored_project_config,
                 "ignored_keys": list(diagnose.get("ignored_project_config_keys") or []),
             },
